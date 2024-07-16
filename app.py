@@ -4,6 +4,8 @@ import subprocess
 import os
 from PIL import Image
 import gradio as gr
+from fpdf import FPDF
+
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -46,6 +48,34 @@ def predict():
         return send_file(output_image_path, mimetype='image/jpeg')
     else:
         return jsonify({'error': 'No detection results found.'}), 404
+    
+
+def generate_pdf(image):
+    # Save the image to the current directory
+    image_path = os.path.join(os.getcwd(), 'uploaded_image.jpg')
+    image.save(image_path)
+    
+    # Run the detection script
+    output_image_path = run_detection(image_path)
+    
+    if output_image_path:
+        # Create a PDF
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Add input image to PDF
+        pdf.image(image_path, x=10, y=10, w=90)
+        
+        # Add output image to PDF
+        pdf.image(output_image_path, x=110, y=10, w=90)
+        
+        # Save the PDF to a file
+        pdf_output_path = os.path.join(os.getcwd(), 'output.pdf')
+        pdf.output(pdf_output_path)
+        
+        return pdf_output_path
+    else:
+        return 'No detection results found.'
 
 # Gradio interface (if you're using it)
 def gradio_interface(image):
@@ -61,12 +91,29 @@ def gradio_interface(image):
     else:
         return 'No detection results found.'
 
-# If you are using Gradio, launch it here
+# Gradio interface (if you're using it)
 iface = gr.Interface(
     fn=gradio_interface,
     inputs=gr.Image(type='pil'),
-    outputs=gr.Image(type='pil')
+    outputs=gr.Image(type='pil'),
+    live=True
 )
+
+def gradio_pdf_interface(image):
+    pdf_path = generate_pdf(image)
+    if pdf_path and os.path.exists(pdf_path):
+        return pdf_path
+    else:
+        return 'PDF generation failed.'
+
+iface_pdf = gr.Interface(
+    fn=gradio_pdf_interface,
+    inputs=gr.Image(type='pil'),
+    outputs=gr.File()
+)
+
+# Combine the interfaces
+iface = gr.TabbedInterface([iface, iface_pdf], ["Detect Defects", "Generate PDF"])
 
 # Flask app launch
 if __name__ == "__main__":
