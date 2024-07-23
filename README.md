@@ -23,7 +23,7 @@ Follow these steps to set up and run the application:
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/PCB-Defect-Detection-using-Yolo-v5.git
+   git clone https://github.com/Adi12566/PCB-Defect-Detection-using-Yolo-v5.git
    cd PCB-Defect-Detection-using-Yolo-v5
 
    
