@@ -5,7 +5,8 @@ import os
 from PIL import Image
 import gradio as gr
 from fpdf import FPDF
-
+import xml.etree.ElementTree as ET
+from collections import Counter
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -16,7 +17,7 @@ def run_detection(image_path):
     weights_file = os.path.join(os.getcwd(), 'best.pt')
     
     # Call the detect.py script using subprocess and capture the output directory
-    result = subprocess.run(['python', detect_script, '--source', image_path, '--weights', weights_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    result = subprocess.run(['python', detect_script, '--source', image_path, '--weights', weights_file, '--save-txt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     
     # Find the latest res{number} directory under output
     detect_dir = os.path.join(os.getcwd(), 'output')
@@ -26,9 +27,37 @@ def run_detection(image_path):
     if latest_res:
         output_dir = os.path.join(detect_dir, latest_res)
         output_image_path = os.path.join(output_dir, 'uploaded_image.jpg')  # Adjust based on your output image format
-        return output_image_path
+        txt_file_path = os.path.join(output_dir, 'labels', os.path.basename(image_path).replace('.jpg', '.txt'))
+        return output_image_path, txt_file_path
     else:
-        return None
+        return None, None
+
+def parse_defect_data():
+    # Parse the data.xml file to get defect information
+    tree = ET.parse('data.xml')
+    root = tree.getroot()
+    
+    defect_data = {}
+    for defect in root.findall('Defect'):
+        defect_type = defect.find('Type').text
+        description = defect.find('Cause/Description').text
+        # Map defect type to a number (1-6)
+        defect_data[str(len(defect_data) + 1)] = {
+            'type': defect_type,
+            'description': description
+        }
+    
+    return defect_data
+
+def read_detected_classes(txt_file_path):
+    detected_classes = []
+    if os.path.exists(txt_file_path):
+        with open(txt_file_path, 'r') as file:
+            for line in file:
+                parts = line.strip().split()
+                if parts and parts[0].isdigit():
+                    detected_classes.append(parts[0])
+    return detected_classes
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -42,13 +71,12 @@ def predict():
     file.save(image_path)
     
     # Run the detection script
-    output_image_path = run_detection(image_path)
+    output_image_path, _ = run_detection(image_path)
     
     if output_image_path:
         return send_file(output_image_path, mimetype='image/jpeg')
     else:
         return jsonify({'error': 'No detection results found.'}), 404
-    
 
 def generate_pdf(image):
     # Save the image to the current directory
@@ -56,18 +84,50 @@ def generate_pdf(image):
     image.save(image_path)
     
     # Run the detection script
-    output_image_path = run_detection(image_path)
+    output_image_path, txt_file_path = run_detection(image_path)
     
-    if output_image_path:
+    if output_image_path and txt_file_path:
+        # Parse the defect data
+        defect_data = parse_defect_data()
+        
+        # Read detected classes
+        detected_classes = read_detected_classes(txt_file_path)
+        
+        # Count the occurrences of each defect
+        defect_counts = Counter(detected_classes)
+        
         # Create a PDF
         pdf = FPDF()
         pdf.add_page()
         
         # Add input image to PDF
-        pdf.image(image_path, x=10, y=10, w=90)
+        if os.path.exists(image_path):
+            pdf.image(image_path, x=10, y=10, w=90)
+        else:
+            print(f"Input image not found: {image_path}")
         
         # Add output image to PDF
-        pdf.image(output_image_path, x=110, y=10, w=90)
+        if os.path.exists(output_image_path):
+            pdf.image(output_image_path, x=110, y=10, w=90)
+        else:
+            print(f"Output image not found: {output_image_path}")
+        
+        # Add defect information to PDF
+        pdf.set_xy(10, 100)
+        pdf.set_font("Arial", size=12)
+        
+        pdf.cell(0, 10, "Detected Defects:", ln=True)
+        pdf.set_font("Arial", size=10)
+        
+        counter = 1
+        for class_id, count in defect_counts.items():
+            defect_info = defect_data.get(class_id)
+            if defect_info:
+                description = f"{counter}. {defect_info['type']}: {defect_info['description']}"
+                if count > 1:
+                    description += f" (Detected {count} times)"
+                pdf.multi_cell(0, 10, description)
+                counter += 1
         
         # Save the PDF to a file
         pdf_output_path = os.path.join(os.getcwd(), 'output.pdf')
@@ -84,14 +144,13 @@ def gradio_interface(image):
     image.save(image_path)
     
     # Run the detection script
-    output_image_path = run_detection(image_path)
+    output_image_path, _ = run_detection(image_path)
     
     if output_image_path:
         return Image.open(output_image_path)
     else:
         return 'No detection results found.'
 
-# Gradio interface (if you're using it)
 iface = gr.Interface(
     fn=gradio_interface,
     inputs=gr.Image(type='pil'),
