@@ -1,36 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <PCBDefects>
     <Defect>
+        <Class>0</Class>
         <Type>Missing hole</Type>
         <Cause>
             <Description>Occurs when a required hole is not drilled or punched through the PCB, often due to errors in the drilling process or issues with the drill files.</Description>
         </Cause>
     </Defect>
     <Defect>
+        <Class>1</Class>
         <Type>Mouse bite</Type>
         <Cause>
             <Description>Small, semi-circular patterns along the edge of a PCB, typically caused by improper drilling or poor material quality.</Description>
         </Cause>
     </Defect>
     <Defect>
+        <Class>2</Class>
         <Type>Open circuit</Type>
         <Cause>
             <Description>Occurs when a break in the circuit prevents current from flowing, usually due to broken traces, poor solder joints, or component failure.</Description>
         </Cause>
     </Defect>
     <Defect>
+        <Class>3</Class>
         <Type>Short</Type>
         <Cause>
             <Description>An unintended connection between two points in a circuit, often caused by solder bridging, improper PCB design, or contamination during the manufacturing process.</Description>
         </Cause>
     </Defect>
     <Defect>
+        <Class>4</Class>
         <Type>Spur</Type>
         <Cause>
             <Description>Unintended conductive paths or projections on a PCB, typically resulting from over-etching, poor layout design, or accidental contamination.</Description>
         </Cause>
     </Defect>
     <Defect>
+        <Class>5</Class>
         <Type>Spurious copper</Type>
         <Cause>
             <Description>Unintended copper residues or patterns on a PCB, usually caused by incomplete etching, manufacturing defects, or errors in the photolithography process.</Description>

@@ -7,6 +7,7 @@ import gradio as gr
 from fpdf import FPDF
 import xml.etree.ElementTree as ET
 from collections import Counter
+from datetime import datetime
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -39,10 +40,10 @@ def parse_defect_data():
     
     defect_data = {}
     for defect in root.findall('Defect'):
+        class_num = defect.find('Class').text
         defect_type = defect.find('Type').text
         description = defect.find('Cause/Description').text
-        # Map defect type to a number (1-6)
-        defect_data[str(len(defect_data) + 1)] = {
+        defect_data[class_num] = {
             'type': defect_type,
             'description': description
         }
@@ -100,20 +101,28 @@ def generate_pdf(image):
         pdf = FPDF()
         pdf.add_page()
         
+        # Add header with title and date
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, 'Defect Detection Report', 0, 1, 'C')
+        pdf.set_font("Arial", 'I', 12)
+        pdf.cell(0, 10, f'Date: {datetime.now().strftime("%Y-%m-%d")}', 0, 1, 'C')
+        
+        pdf.ln(10)  # Add some space after the header
+        
         # Add input image to PDF
         if os.path.exists(image_path):
-            pdf.image(image_path, x=10, y=10, w=90)
+            pdf.image(image_path, x=10, y=40, w=90)
         else:
             print(f"Input image not found: {image_path}")
         
         # Add output image to PDF
         if os.path.exists(output_image_path):
-            pdf.image(output_image_path, x=110, y=10, w=90)
+            pdf.image(output_image_path, x=110, y=40, w=90)
         else:
             print(f"Output image not found: {output_image_path}")
         
         # Add defect information to PDF
-        pdf.set_xy(10, 100)
+        pdf.set_xy(10, 140)
         pdf.set_font("Arial", size=12)
         
         pdf.cell(0, 10, "Detected Defects:", ln=True)
@@ -128,6 +137,7 @@ def generate_pdf(image):
                     description += f" (Detected {count} times)"
                 pdf.multi_cell(0, 10, description)
                 counter += 1
+    
         
         # Save the PDF to a file
         pdf_output_path = os.path.join(os.getcwd(), 'output.pdf')
